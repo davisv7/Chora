@@ -22,6 +22,7 @@ import com.craftworks.music.providers.navidrome.parseNavidromePlainLyricsJSON
 import com.craftworks.music.providers.navidrome.parseNavidromePlaylistJSON
 import com.craftworks.music.providers.navidrome.parseNavidromePlaylistsJSON
 import com.craftworks.music.providers.navidrome.parseNavidromeRadioJSON
+import com.craftworks.music.providers.navidrome.parseNavidromeRandomSongsJSON
 import com.craftworks.music.providers.navidrome.parseNavidromeSearch3JSON
 import com.craftworks.music.providers.navidrome.parseNavidromeSimilarSongsJSON
 import com.craftworks.music.providers.navidrome.parseNavidromeStatus
@@ -187,6 +188,8 @@ class NavidromeDataSource @Inject constructor() {
                 endpoint.startsWith("unstar") -> { NavidromeManager.setSyncingStatus(false) }
 
                 endpoint.startsWith("getSimilarSongs") -> parsedData.addAll(parseNavidromeSimilarSongsJSON(responseContent, server.url, server.username, server.password))
+
+                endpoint.startsWith("getRandomSongs") -> parsedData.addAll(parseNavidromeRandomSongsJSON(responseContent, server.url, server.username, server.password))
             }
         } catch (e: UnresolvedAddressException) {
             Log.e("NAVIDROME", "Network error for URL: $url", e)
@@ -270,6 +273,18 @@ class NavidromeDataSource @Inject constructor() {
         musicFolderIds,
         ignoreCachedResponse
         )).filterIsInstance<MediaItem>()
+    }
+
+    suspend fun getNavidromeRandomSongs(
+        size: Int = 500,
+        ignoreCachedResponse: Boolean = true,
+        musicFolderIds: List<Int>? = NavidromeManager.getEnabledLibraryIdsForCurrentServer(),
+    ): List<MediaItem> = withContext(Dispatchers.IO) {
+        getRequest(
+            "getRandomSongs.view?size=$size",
+            musicFolderIds,
+            ignoreCachedResponse
+        ).filterIsInstance<MediaItem>()
     }
 
     suspend fun getNavidromeSong(

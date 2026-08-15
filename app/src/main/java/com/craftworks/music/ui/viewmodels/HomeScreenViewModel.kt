@@ -3,9 +3,13 @@ package com.craftworks.music.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
 import com.craftworks.music.data.repository.AlbumRepository
+import com.craftworks.music.data.repository.SongRepository
 import com.craftworks.music.managers.DataRefreshManager
 import com.craftworks.music.managers.NavidromeManager
+import com.craftworks.music.player.SongHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -19,7 +23,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
-    private val albumRepository: AlbumRepository
+    private val albumRepository: AlbumRepository,
+    private val songRepository: SongRepository
 ) : ViewModel() {
     private val _recentlyPlayedAlbums = MutableStateFlow<List<MediaItem>>(emptyList())
     val recentlyPlayedAlbums: StateFlow<List<MediaItem>> = _recentlyPlayedAlbums.asStateFlow()
@@ -77,5 +82,17 @@ class HomeScreenViewModel @Inject constructor(
 
     suspend fun getAlbumSongs(albumId: String): List<MediaItem> {
         return albumRepository.getAlbum(albumId) ?: emptyList()
+    }
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun shuffleLibrary(mediaController: MediaController?, size: Int = 500) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val randomSongs = coroutineScope { songRepository.getRandomSongs(size) }
+            _isLoading.value = false
+            if (randomSongs.isEmpty()) return@launch
+            mediaController?.shuffleModeEnabled = true
+            SongHelper.play(randomSongs, 0, mediaController)
+        }
     }
 }

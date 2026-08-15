@@ -149,6 +149,18 @@ fun HomeScreen(
                     )
                 }
                 IconButton(
+                    onClick = { viewModel.shuffleLibrary(mediaController) },
+                    modifier = Modifier
+                        .padding(end = 4.dp)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.round_shuffle_28),
+                        contentDescription = stringResource(R.string.Action_Shuffle_Library),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                IconButton(
                     onClick = {
                         navHostController.navigate(Screen.Setting.route) {
                             launchSingleTop = true

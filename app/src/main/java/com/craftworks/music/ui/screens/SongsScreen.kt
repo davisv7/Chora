@@ -109,6 +109,16 @@ fun SongsScreen(
                     extraAction = {
                         Box {
                             IconButton (
+                                onClick = { viewModel.shuffleLibrary(mediaController) }
+                            ) {
+                                Icon (
+                                    imageVector = ImageVector.vectorResource(R.drawable.round_shuffle_28),
+                                    contentDescription = stringResource(R.string.Action_Shuffle_Library),
+                                )
+                            }
+                        }
+                        Box {
+                            IconButton (
                                 onClick = { viewModel.setShowFavoritesOnly(!showFavoritesOnly) }
                             ) {
                                 Icon (

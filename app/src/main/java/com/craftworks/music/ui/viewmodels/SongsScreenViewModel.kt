@@ -4,9 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.StarRating
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
 import com.craftworks.music.data.repository.SongRepository
 import com.craftworks.music.managers.DataRefreshManager
 import com.craftworks.music.managers.settings.LocalDataSettingsManager
+import com.craftworks.music.player.SongHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,6 +83,18 @@ class SongsScreenViewModel @Inject constructor(
             _isLoading.value = false
         }
     }
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun shuffleLibrary(mediaController: MediaController?, size: Int = 500) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val randomSongs = coroutineScope { songRepository.getRandomSongs(size) }
+            _isLoading.value = false
+            if (randomSongs.isEmpty()) return@launch
+            mediaController?.shuffleModeEnabled = true
+            SongHelper.play(randomSongs, 0, mediaController)
+        }
+    }
+
     fun setShowFavoritesOnly(showFavorites: Boolean) {
         viewModelScope.launch {
             localDataSettingsManager.saveShowFavoriteOnly(showFavorites)

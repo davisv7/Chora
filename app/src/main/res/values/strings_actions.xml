@@ -9,6 +9,7 @@
 
     <string name="Action_Play">Play</string>
     <string name="Action_Shuffle">Shuffle</string>
+    <string name="Action_Shuffle_Library">Shuffle Library</string>
 
     <!-- Navidrome Provider -->
     <string name="Action_Add">Add</string>

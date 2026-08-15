@@ -48,6 +48,9 @@ data class SubsonicResponse(
     // Favourites
     val starred: Starred? = null,
 
+    // Random songs (getRandomSongs.view)
+    val randomSongs: RandomSongs? = null,
+
     val sonicMatch: List<MediaData.Song>? = null
 )
 
