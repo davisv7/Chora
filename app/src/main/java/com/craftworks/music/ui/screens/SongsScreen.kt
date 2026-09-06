@@ -50,7 +50,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun SongsScreen(
     mediaController: MediaController? = null,
-    viewModel: SongsScreenViewModel = hiltViewModel()
+    viewModel: SongsScreenViewModel = hiltViewModel(),
+    onNavigateToAlbum: ((albumId: String, imageUri: String) -> Unit)? = null,
+    onNavigateToArtist: ((artistId: String, artistName: String) -> Unit)? = null,
 ) {
     val allSongsList by viewModel.allSongs.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
@@ -100,7 +102,15 @@ fun SongsScreen(
                             onAddToQueue = {
                                 mediaController?.addMediaItem(it)
                             },
+                            onPlayNext = {
+                                mediaController?.addMediaItem(
+                                    (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
+                                    it
+                                )
+                            },
                             onSetRating = { songToRate = it },
+                            onNavigateToAlbum = onNavigateToAlbum,
+                            onNavigateToArtist = onNavigateToArtist,
                             isSearch = true,
                             showFavoritesOnly = false,
                             viewModel = viewModel
@@ -147,7 +157,15 @@ fun SongsScreen(
                     onAddToQueue = {
                         mediaController?.addMediaItem(it)
                     },
+                    onPlayNext = {
+                        mediaController?.addMediaItem(
+                            (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
+                            it
+                        )
+                    },
                     onSetRating = { songToRate = it },
+                    onNavigateToAlbum = onNavigateToAlbum,
+                    onNavigateToArtist = onNavigateToArtist,
                     isSearch = false,
                     showFavoritesOnly = showFavoritesOnly,
                     viewModel = viewModel

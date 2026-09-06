@@ -56,6 +56,8 @@ fun MediaData.Song.toMediaItem(): MediaItem {
             }
             .setExtras(Bundle().apply {
                 putString("navidromeID", this@toMediaItem.navidromeID)
+                putString("albumId", this@toMediaItem.albumId)
+                putString("artistId", this@toMediaItem.artistId)
                 putString("lyricsArtist", if (this@toMediaItem.artists.isNotEmpty()) this@toMediaItem.artists[0].name else this@toMediaItem.artist)
                 putInt("duration", this@toMediaItem.duration)
                 putString("format", this@toMediaItem.format)

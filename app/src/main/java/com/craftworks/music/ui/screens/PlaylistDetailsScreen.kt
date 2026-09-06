@@ -77,8 +77,10 @@ import com.craftworks.music.ui.elements.dialogs.AddSongToPlaylist
 import com.craftworks.music.ui.elements.dialogs.RatingDialog
 import com.craftworks.music.ui.elements.dialogs.dialogFocusable
 import com.craftworks.music.ui.elements.dialogs.showAddSongToPlaylistDialog
+import com.craftworks.music.data.model.Screen
 import com.craftworks.music.ui.viewmodels.PlaylistScreenViewModel
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 @OptIn(ExperimentalComposeUiApi::class)
 @ExperimentalFoundationApi
@@ -315,7 +317,25 @@ fun PlaylistDetails(
                     onAddToQueue = {
                         mediaController?.addMediaItem(song)
                     },
+                    onPlayNext = {
+                        mediaController?.addMediaItem(
+                            (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
+                            song
+                        )
+                    },
                     onSetRating = { songToRate = song },
+                    onNavigateToAlbum = { albumId, imageUri ->
+                        val encodedImage = URLEncoder.encode(imageUri, "UTF-8")
+                        navHostController.navigate(Screen.AlbumDetails.route + "/$albumId/$encodedImage") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToArtist = { artistId, artistName ->
+                        val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                        navHostController.navigate(Screen.ArtistDetails.route + "?artistId=$artistId&artistName=$encodedName") {
+                            launchSingleTop = true
+                        }
+                    },
                     extraMenuItems = { onDismiss ->
                         DropdownMenuItem(
                             text = {

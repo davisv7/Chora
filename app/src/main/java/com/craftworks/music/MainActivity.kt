@@ -272,7 +272,25 @@ class MainActivity : ComponentActivity() {
                                         println("Recomposing sheetcontent")
                                         NowPlayingContent(
                                             mediaController = mediaController,
-                                            metadata = metadata
+                                            metadata = metadata,
+                                            onNavigateToArtist = { artistId, artistName ->
+                                                if (artistId.isNotBlank()) {
+                                                    val encodedName = java.net.URLEncoder.encode(artistName, "UTF-8")
+                                                    navController.navigate(
+                                                        Screen.ArtistDetails.route + "?artistId=$artistId&artistName=$encodedName"
+                                                    ) { launchSingleTop = true }
+                                                    coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                                }
+                                            },
+                                            onNavigateToAlbum = { albumId, imageUri ->
+                                                if (albumId.isNotBlank()) {
+                                                    val encodedImage = java.net.URLEncoder.encode(imageUri, "UTF-8")
+                                                    navController.navigate(
+                                                        Screen.AlbumDetails.route + "/$albumId/$encodedImage"
+                                                    ) { launchSingleTop = true }
+                                                    coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                                }
+                                            }
                                         )
                                     }
 

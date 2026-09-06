@@ -50,6 +50,8 @@ fun NowPlayingContent(
     mediaController: MediaController? = null,
     metadata: MediaMetadata? = null,
     viewModel: NowPlayingViewModel = viewModel(),
+    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> },
+    onNavigateToAlbum: (albumId: String, imageUri: String) -> Unit = { _, _ -> },
 ) {
     val backgroundStyle by viewModel.backgroundStyle.collectAsStateWithLifecycle(NowPlayingBackground.STATIC_BLUR)
     val backgroundDarkMode by viewModel.isBackgroundDark.collectAsStateWithLifecycle()
@@ -96,6 +98,8 @@ fun NowPlayingContent(
             sleepTimerMinutes = sleepTimerMinutes,
             onOpenSleepTimer = { viewModel.setSleepTimerDialogOpen(true) },
             onToggleQueue = { viewModel.setPlayQueueOpen(!playQueueOpen) },
+            onNavigateToArtist = onNavigateToArtist,
+            onNavigateToAlbum = onNavigateToAlbum,
         )
     } else {
         NowPlayingPortrait(
@@ -108,7 +112,9 @@ fun NowPlayingContent(
             onToggleQueue = { viewModel.setPlayQueueOpen(!playQueueOpen) },
             onToggleDetails = { viewModel.setDetailsOpen(!detailsOpen) },
             onOpenSleepTimer = { viewModel.setSleepTimerDialogOpen(true) },
-            onRefreshLyrics =  { viewModel.refreshLyrics(metadata) }
+            onRefreshLyrics =  { viewModel.refreshLyrics(metadata) },
+            onNavigateToArtist = onNavigateToArtist,
+            onNavigateToAlbum = onNavigateToAlbum,
         )
     }
 

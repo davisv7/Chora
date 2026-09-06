@@ -1,6 +1,8 @@
 package com.craftworks.music.ui.elements
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import com.craftworks.music.ui.elements.dialogs.showAddSongToPlaylistDialog
 import com.craftworks.music.ui.elements.dialogs.songToAddToPlaylist
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HorizontalSongCard(
     song: MediaItem,
@@ -63,13 +66,16 @@ fun HorizontalSongCard(
     showTrackNumber: Boolean = false,
     onClick: () -> Unit,
     onAddToQueue: () -> Unit,
+    onPlayNext: () -> Unit = {},
     onSetRating: () -> Unit,
+    onNavigateToAlbum: ((albumId: String, imageUri: String) -> Unit)? = null,
+    onNavigateToArtist: ((artistId: String, artistName: String) -> Unit)? = null,
     extraMenuItems: @Composable (onDismiss: () -> Unit) -> Unit = {}
 ) {
     val context = LocalContext.current
 
+    var expanded by remember { mutableStateOf(false) }
     Card(
-        onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent,
@@ -77,7 +83,10 @@ fun HorizontalSongCard(
             disabledContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
             disabledContentColor = MaterialTheme.colorScheme.onTertiaryContainer
         ),
-        modifier = modifier
+        modifier = modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = { expanded = true }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -182,7 +191,6 @@ fun HorizontalSongCard(
                 textAlign = TextAlign.End
             )
 
-            var expanded by remember { mutableStateOf(false) }
             Box(
                 modifier = Modifier.width(48.dp)
             ) {
@@ -241,6 +249,21 @@ fun HorizontalSongCard(
                     )
                     DropdownMenuItem(
                         text = {
+                            Text(stringResource(R.string.Action_Play_Next))
+                        },
+                        onClick = {
+                            onPlayNext()
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(R.drawable.media3_notification_seek_to_next),
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
                             Text(
                                 stringResource(R.string.Dialog_Add_To_Playlist).replace(
                                     "/ ",
@@ -279,6 +302,42 @@ fun HorizontalSongCard(
                             )
                         }
                     )
+
+                    onNavigateToAlbum?.let { navigate ->
+                        val albumId = song.mediaMetadata.extras?.getString("albumId") ?: ""
+                        DropdownMenuItem(
+                            enabled = albumId.isNotBlank(),
+                            text = { Text(stringResource(R.string.Action_Go_To_Album)) },
+                            onClick = {
+                                navigate(albumId, song.mediaMetadata.artworkUri?.toString() ?: "")
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = ImageVector.vectorResource(R.drawable.rounded_library_music_24),
+                                    contentDescription = null
+                                )
+                            }
+                        )
+                    }
+                    onNavigateToArtist?.let { navigate ->
+                        val artistId = song.mediaMetadata.extras?.getString("artistId") ?: ""
+                        val artistName = song.mediaMetadata.artist?.toString() ?: ""
+                        DropdownMenuItem(
+                            enabled = artistId.isNotBlank(),
+                            text = { Text(stringResource(R.string.Action_Go_To_Artist)) },
+                            onClick = {
+                                navigate(artistId, artistName)
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = ImageVector.vectorResource(R.drawable.rounded_artist_24),
+                                    contentDescription = null
+                                )
+                            }
+                        )
+                    }
 
                     extraMenuItems { expanded = false }
                 }

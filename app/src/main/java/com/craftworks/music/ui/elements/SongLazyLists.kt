@@ -63,7 +63,10 @@ fun SongsHorizontalColumn(
     songList: List<MediaItem>,
     onSongSelected: (itemsList: List<MediaItem>, index: Int) -> Unit,
     onAddToQueue: (song: MediaItem) -> Unit,
+    onPlayNext: (song: MediaItem) -> Unit = {},
     onSetRating: (sond: MediaItem) -> Unit,
+    onNavigateToAlbum: ((albumId: String, imageUri: String) -> Unit)? = null,
+    onNavigateToArtist: ((artistId: String, artistName: String) -> Unit)? = null,
     isSearch: Boolean? = false,
     showFavoritesOnly: Boolean = false,
     viewModel: SongsScreenViewModel? = null
@@ -139,9 +142,14 @@ fun SongsHorizontalColumn(
                     onAddToQueue = {
                         onAddToQueue(song)
                     },
+                    onPlayNext = {
+                        onPlayNext(song)
+                    },
                     onSetRating = {
                         onSetRating(song)
-                    }
+                    },
+                    onNavigateToAlbum = onNavigateToAlbum,
+                    onNavigateToArtist = onNavigateToArtist
                 )
             }
         }
@@ -223,19 +231,35 @@ fun AlbumGrid(
 
                 }
                 itemsIndexed(albumsInGroup) { index, album ->
+                    val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
                     AlbumCard(album = album,
                         onClick = {
                             onAlbumSelected(album.toAlbum())
                         },
                         onPlay = {
                             coroutineScope.launch {
-                                val mediaItems = viewModel.getAlbum(album.mediaMetadata.extras?.getString("navidromeID") ?: "")
+                                val mediaItems = viewModel.getAlbum(albumId)
                                 if (mediaItems.isNotEmpty())
                                     SongHelper.play(
                                         mediaItems = mediaItems.subList(1, mediaItems.size),
                                         index = 0,
                                         mediaController = mediaController
                                     )
+                            }
+                        },
+                        onAddToQueue = {
+                            coroutineScope.launch {
+                                val mediaItems = viewModel.getAlbum(albumId)
+                                mediaItems.drop(1).forEach { mediaController?.addMediaItem(it) }
+                            }
+                        },
+                        onPlayNext = {
+                            coroutineScope.launch {
+                                val mediaItems = viewModel.getAlbum(albumId)
+                                val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                                mediaItems.drop(1).forEachIndexed { i, song ->
+                                    mediaController?.addMediaItem(insertIndex + i, song)
+                                }
                             }
                         }
                     )
@@ -247,19 +271,35 @@ fun AlbumGrid(
                 items = albums,
                 key = { it.mediaId }
             ) { album ->
+                val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
                 AlbumCard(album = album,
                     onClick = {
                         onAlbumSelected(album.toAlbum())
                     },
                     onPlay = {
                         coroutineScope.launch {
-                            val mediaItems = viewModel.getAlbum(album.mediaMetadata.extras?.getString("navidromeID") ?: "")
+                            val mediaItems = viewModel.getAlbum(albumId)
                             if (mediaItems.isNotEmpty())
                                 SongHelper.play(
                                     mediaItems = mediaItems.subList(1, mediaItems.size),
                                     index = 0,
                                     mediaController = mediaController
                                 )
+                        }
+                    },
+                    onAddToQueue = {
+                        coroutineScope.launch {
+                            val mediaItems = viewModel.getAlbum(albumId)
+                            mediaItems.drop(1).forEach { mediaController?.addMediaItem(it) }
+                        }
+                    },
+                    onPlayNext = {
+                        coroutineScope.launch {
+                            val mediaItems = viewModel.getAlbum(albumId)
+                            val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                            mediaItems.drop(1).forEachIndexed { i, song ->
+                                mediaController?.addMediaItem(insertIndex + i, song)
+                            }
                         }
                     }
                 )
@@ -322,19 +362,34 @@ fun AlbumGrid(
 
                 }
                 itemsIndexed(albumsInGroup) { index, album ->
+                    val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
                     AlbumCard(album = album,
                         onClick = {
                             onAlbumSelected(album.toAlbum())
                         },
                         onPlay = {
                             coroutineScope.launch {
-                                val mediaItems = onGetAlbum(album.mediaMetadata.extras?.getString("navidromeID") ?: "")
+                                val mediaItems = onGetAlbum(albumId)
                                 if (mediaItems.isNotEmpty())
                                     SongHelper.play(
                                         mediaItems = mediaItems.subList(1, mediaItems.size),
                                         index = 0,
                                         mediaController = mediaController
                                     )
+                            }
+                        },
+                        onAddToQueue = {
+                            coroutineScope.launch {
+                                onGetAlbum(albumId).drop(1).forEach { mediaController?.addMediaItem(it) }
+                            }
+                        },
+                        onPlayNext = {
+                            coroutineScope.launch {
+                                val mediaItems = onGetAlbum(albumId)
+                                val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                                mediaItems.drop(1).forEachIndexed { i, song ->
+                                    mediaController?.addMediaItem(insertIndex + i, song)
+                                }
                             }
                         }
                     )
@@ -346,19 +401,34 @@ fun AlbumGrid(
                 items = albums,
                 key = { it.mediaId }
             ) { album ->
+                val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
                 AlbumCard(album = album,
                     onClick = {
                         onAlbumSelected(album.toAlbum())
                     },
                     onPlay = {
                         coroutineScope.launch {
-                            val mediaItems = onGetAlbum(album.mediaMetadata.extras?.getString("navidromeID") ?: "")
+                            val mediaItems = onGetAlbum(albumId)
                             if (mediaItems.isNotEmpty())
                                 SongHelper.play(
                                     mediaItems = mediaItems.subList(1, mediaItems.size),
                                     index = 0,
                                     mediaController = mediaController
                                 )
+                        }
+                    },
+                    onAddToQueue = {
+                        coroutineScope.launch {
+                            onGetAlbum(albumId).drop(1).forEach { mediaController?.addMediaItem(it) }
+                        }
+                    },
+                    onPlayNext = {
+                        coroutineScope.launch {
+                            val mediaItems = onGetAlbum(albumId)
+                            val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                            mediaItems.drop(1).forEachIndexed { i, song ->
+                                mediaController?.addMediaItem(insertIndex + i, song)
+                            }
                         }
                     }
                 )
@@ -433,7 +503,9 @@ fun AlbumRow(
 @Composable
 fun ArtistsGrid(
     artists: List<MediaData.Artist>,
-    onArtistSelected: (artist: MediaData.Artist) -> Unit
+    onArtistSelected: (artist: MediaData.Artist) -> Unit,
+    onAddToQueue: ((artist: MediaData.Artist) -> Unit)? = null,
+    onPlayNext: ((artist: MediaData.Artist) -> Unit)? = null,
 ){
     val gridState = rememberLazyGridState()
     val showProviderDividers by AppearanceSettingsManager(LocalContext.current).showProviderDividersFlow.collectAsStateWithLifecycle(true)
@@ -478,9 +550,12 @@ fun ArtistsGrid(
 
                 }
                 itemsIndexed(artistsInGroup) { index, artist ->
-                    ArtistCard(artist = artist, onClick = {
-                        onArtistSelected(artist)
-                    })
+                    ArtistCard(
+                        artist = artist,
+                        onClick = { onArtistSelected(artist) },
+                        onAddToQueue = onAddToQueue?.let { { it(artist) } },
+                        onPlayNext = onPlayNext?.let { { it(artist) } }
+                    )
                 }
             }
         } else {
@@ -488,9 +563,12 @@ fun ArtistsGrid(
                 items = artists,
                 key = { it.navidromeID }
             ) { artist ->
-                ArtistCard(artist = artist, onClick = {
-                    onArtistSelected(artist)
-                })
+                ArtistCard(
+                    artist = artist,
+                    onClick = { onArtistSelected(artist) },
+                    onAddToQueue = onAddToQueue?.let { { it(artist) } },
+                    onPlayNext = onPlayNext?.let { { it(artist) } }
+                )
             }
         }
     }

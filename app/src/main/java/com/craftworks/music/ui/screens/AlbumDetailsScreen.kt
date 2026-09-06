@@ -6,6 +6,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,9 +83,11 @@ import com.craftworks.music.ui.elements.dialogs.AddSongToPlaylist
 import com.craftworks.music.ui.elements.dialogs.RatingDialog
 import com.craftworks.music.ui.elements.dialogs.dialogFocusable
 import com.craftworks.music.ui.elements.dialogs.showAddSongToPlaylistDialog
+import com.craftworks.music.data.model.Screen
 import com.craftworks.music.ui.viewmodels.AlbumDetailsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -215,14 +218,31 @@ fun AlbumDetails(
                             lineHeight = 32.sp,
                         )
                         Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = currentAlbum[0].mediaMetadata.artist.toString() + " • " + formatMilliseconds(currentAlbum[0].mediaMetadata.durationMs?.div(1000)?.toInt() ?: 0),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            val artistId = currentAlbum[0].mediaMetadata.extras?.getString("artistId") ?: ""
+                            val artistName = currentAlbum[0].mediaMetadata.artist.toString()
+                            Text(
+                                text = artistName,
+                                color = if (artistId.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                                modifier = Modifier.clickable(enabled = artistId.isNotBlank()) {
+                                    val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                                    navHostController.navigate(Screen.ArtistDetails.route + "?artistId=$artistId&artistName=$encodedName") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                            Text(
+                                text = " • " + formatMilliseconds(currentAlbum[0].mediaMetadata.durationMs?.div(1000)?.toInt() ?: 0),
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                            )
+                        }
 
                         // Genres
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
@@ -401,7 +421,19 @@ fun AlbumDetails(
                             onAddToQueue = {
                                 mediaController?.addMediaItem(song)
                             },
-                            onSetRating = { songToRate = song }
+                            onPlayNext = {
+                                mediaController?.addMediaItem(
+                                    (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
+                                    song
+                                )
+                            },
+                            onSetRating = { songToRate = song },
+                            onNavigateToArtist = { artistId, artistName ->
+                                val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                                navHostController.navigate(Screen.ArtistDetails.route + "?artistId=$artistId&artistName=$encodedName") {
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
                 }
@@ -424,7 +456,19 @@ fun AlbumDetails(
                         onAddToQueue = {
                             mediaController?.addMediaItem(song)
                         },
-                        onSetRating = { songToRate = song }
+                        onPlayNext = {
+                            mediaController?.addMediaItem(
+                                (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
+                                song
+                            )
+                        },
+                        onSetRating = { songToRate = song },
+                        onNavigateToArtist = { artistId, artistName ->
+                            val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                            navHostController.navigate(Screen.ArtistDetails.route + "?artistId=$artistId&artistName=$encodedName") {
+                                launchSingleTop = true
+                            }
+                        }
                     )
                 }
             }

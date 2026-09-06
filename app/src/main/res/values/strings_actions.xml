@@ -14,6 +14,7 @@
     <!-- Navidrome Provider -->
     <string name="Action_Add">Add</string>
     <string name="Action_Add_To_Queue">Add To Queue</string>
+    <string name="Action_Play_Next">Queue Next</string>
     <string name="Action_Next">Next</string>
     <string name="Action_Success">Success</string>
     <string name="Action_Login">Login</string>
@@ -26,4 +27,7 @@
     <string name="Action_RemoveFromPlaylist">Remove From Playlist</string>
 
     <string name="Action_Download">Download</string>
+
+    <string name="Action_Go_To_Album">Go to Album</string>
+    <string name="Action_Go_To_Artist">Go to Artist</string>
 </resources>

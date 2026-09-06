@@ -12,6 +12,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,7 +73,9 @@ fun NowPlayingLandscape(
     sleepTimerMinutes: Int = 10,
     onOpenSleepTimer: () -> Unit = {},
     onToggleQueue: () -> Unit = {},
-    onRefreshLyrics: () -> Unit = {}
+    onRefreshLyrics: () -> Unit = {},
+    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> },
+    onNavigateToAlbum: (albumId: String, imageUri: String) -> Unit = { _, _ -> },
 ) {
     val iconTextColor by animateColorAsState(
         targetValue = iconColor,
@@ -163,6 +166,7 @@ fun NowPlayingLandscape(
                     ),
                     label = "Animated Artist"
                 ) { artistInfo ->
+                    val artistId = metadata?.extras?.getString("artistId") ?: ""
                     Text(
                         text = artistInfo,
                         style = MaterialTheme.typography.titleMedium,
@@ -178,8 +182,55 @@ fun NowPlayingLandscape(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(
+                                if (!isRadio && artistId.isNotBlank())
+                                    Modifier.clickable {
+                                        onNavigateToArtist(artistId, artistInfo)
+                                    }
+                                else Modifier
+                            )
                             .marqueeHorizontalFadingEdges(marqueeProvider = { Modifier.basicMarquee() })
                     )
+                }
+
+                if (!isRadio) {
+                    Crossfade(
+                        targetState = metadata?.albumTitle?.toString() ?: "",
+                        animationSpec = tween(
+                            durationMillis = 400,
+                            easing = FastOutSlowInEasing
+                        ),
+                        label = "Animated Album"
+                    ) { albumInfo ->
+                        if (albumInfo.isNotBlank()) {
+                            val albumId = metadata?.extras?.getString("albumId") ?: ""
+                            val imageUri = metadata?.artworkUri?.toString() ?: ""
+                            Text(
+                                text = albumInfo,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Normal,
+                                color = iconTextColor.copy(alpha = 0.6f),
+                                maxLines = 1,
+                                softWrap = false,
+                                textAlign = when (titleAlignment) {
+                                    NowPlayingAlignment.LEFT -> TextAlign.Start
+                                    NowPlayingAlignment.CENTER -> TextAlign.Center
+                                    NowPlayingAlignment.RIGHT -> TextAlign.End
+                                },
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (albumId.isNotBlank())
+                                            Modifier.clickable {
+                                                onNavigateToAlbum(albumId, imageUri)
+                                            }
+                                        else Modifier
+                                    )
+                                    .marqueeHorizontalFadingEdges(marqueeProvider = { Modifier.basicMarquee() })
+                            )
+                        }
+                    }
                 }
 
                 if (showMoreInfo && !isRadio) {

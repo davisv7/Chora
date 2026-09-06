@@ -42,6 +42,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
+import com.craftworks.music.data.model.MediaData
 import com.craftworks.music.data.model.Screen
 import com.craftworks.music.data.model.playlistList
 import com.craftworks.music.data.repository.LyricsState
@@ -86,6 +87,7 @@ import com.craftworks.music.ui.viewmodels.PlaylistScreenViewModel
 import com.craftworks.music.ui.viewmodels.RadioScreenViewModel
 import com.craftworks.music.ui.viewmodels.SongsScreenViewModel
 import java.net.URLDecoder
+import java.net.URLEncoder
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -177,12 +179,30 @@ fun SetupNavGraph(
                 navController.getBackStackEntry("main_graph")
             }
             val viewModel: SongsScreenViewModel = hiltViewModel(parentEntry)
+            val artistViewModel: ArtistsScreenViewModel = hiltViewModel(parentEntry)
             if (isTv)
                 TvSideNavigation(navController, mediaController) {
                     TvSongsScreen(mediaController, navController, viewModel)
                 }
             else
-                SongsScreen(mediaController, viewModel)
+                SongsScreen(
+                    mediaController,
+                    viewModel,
+                    onNavigateToAlbum = { albumId, imageUri ->
+                        val encodedImage = URLEncoder.encode(imageUri, "UTF-8")
+                        navController.navigate(Screen.AlbumDetails.route + "/$albumId/$encodedImage") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToArtist = { artistId, artistName ->
+                        artistViewModel.setSelectedArtist(
+                            MediaData.Artist(navidromeID = artistId, name = artistName)
+                        )
+                        navController.navigate(Screen.ArtistDetails.route) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
         }
         composable(route = Screen.Radio.route) { backStackEntry ->
             val parentEntry = remember(backStackEntry) {
@@ -251,13 +271,27 @@ fun SetupNavGraph(
                         TvArtistScreen(navController, viewModel)
                     }
                 else
-                    ArtistsScreen(navController, viewModel)
+                    ArtistsScreen(navController, viewModel, mediaController)
             }
-            composable(route = Screen.ArtistDetails.route) { backStackEntry ->
+            composable(
+                route = Screen.ArtistDetails.route + "?artistId={artistId}&artistName={artistName}",
+                arguments = listOf(
+                    navArgument("artistId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("artistName") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) {
                     navController.getBackStackEntry("main_graph")
                 }
                 val viewModel: ArtistsScreenViewModel = hiltViewModel(parentEntry)
+
+                val artistIdArg = backStackEntry.arguments?.getString("artistId")
+                val artistNameArg = backStackEntry.arguments?.getString("artistName")
+                if (!artistIdArg.isNullOrBlank() && !artistNameArg.isNullOrBlank()) {
+                    LaunchedEffect(artistIdArg) {
+                        viewModel.setSelectedArtist(MediaData.Artist(navidromeID = artistIdArg, name = URLDecoder.decode(artistNameArg, "UTF-8")))
+                    }
+                }
 
                 if (isTv)
                     TvArtistDetailsScreen(navController, mediaController, viewModel)
@@ -373,6 +407,7 @@ fun SetupNavGraph(
                 navController.getBackStackEntry("main_graph")
             }
             val viewModel: NowPlayingViewModel = hiltViewModel(parentEntry)
+            val artistViewModel: ArtistsScreenViewModel = hiltViewModel(parentEntry)
 
             var metadata by remember { mutableStateOf<MediaMetadata?>(null) }
 
@@ -400,7 +435,25 @@ fun SetupNavGraph(
             NowPlayingContent(
                 mediaController,
                 metadata,
-                viewModel
+                viewModel,
+                onNavigateToArtist = { artistId, artistName ->
+                    if (artistId.isNotBlank()) {
+                        artistViewModel.setSelectedArtist(
+                            MediaData.Artist(navidromeID = artistId, name = artistName)
+                        )
+                        navController.navigate(Screen.ArtistDetails.route) {
+                            launchSingleTop = true
+                        }
+                    }
+                },
+                onNavigateToAlbum = { albumId, imageUri ->
+                    if (albumId.isNotBlank()) {
+                        val encodedImage = URLEncoder.encode(imageUri, "UTF-8")
+                        navController.navigate(Screen.AlbumDetails.route + "/$albumId/$encodedImage") {
+                            launchSingleTop = true
+                        }
+                    }
+                }
             )
 
             // Keep screen on

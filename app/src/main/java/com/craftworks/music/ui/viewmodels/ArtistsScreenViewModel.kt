@@ -72,6 +72,14 @@ class ArtistsScreenViewModel @Inject constructor(
         return albumRepository.getAlbum(id) ?: emptyList()
     }
 
+    suspend fun getArtistSongs(artist: MediaData.Artist): List<MediaItem> {
+        val albums = artistRepository.getArtistAlbums(artist.navidromeID)
+        return albums.flatMap { album ->
+            val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: return@flatMap emptyList()
+            (albumRepository.getAlbum(albumId) ?: emptyList()).drop(1)
+        }
+    }
+
 //    suspend fun search(query: String) {
 //        _allArtists.value = artistRepository.searchArtists(query)
 //    }

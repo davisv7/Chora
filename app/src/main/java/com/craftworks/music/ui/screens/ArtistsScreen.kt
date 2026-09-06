@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.media3.session.MediaController
 import com.craftworks.music.R
 import com.craftworks.music.data.model.Screen
 import com.craftworks.music.ui.elements.ArtistsGrid
@@ -36,6 +38,7 @@ import com.craftworks.music.ui.elements.RippleEffect
 import com.craftworks.music.ui.elements.TopBarWithSearch
 import com.craftworks.music.ui.playing.dpToPx
 import com.craftworks.music.ui.viewmodels.ArtistsScreenViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ExperimentalFoundationApi
@@ -43,8 +46,10 @@ import com.craftworks.music.ui.viewmodels.ArtistsScreenViewModel
 @Composable
 fun ArtistsScreen(
     navHostController: NavHostController = rememberNavController(),
-    viewModel: ArtistsScreenViewModel = hiltViewModel()
+    viewModel: ArtistsScreenViewModel = hiltViewModel(),
+    mediaController: MediaController? = null,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val allArtistList by viewModel.allArtists.collectAsStateWithLifecycle()
 
@@ -77,12 +82,30 @@ fun ArtistsScreen(
                     scrollBehavior = scrollBehavior,
                     onSearch = { query -> viewModel.onSearchQueryChange(query) },
                     searchResults = {
-                        ArtistsGrid(searchResults, onArtistSelected = { artist ->
-                            viewModel.setSelectedArtist(artist)
-                            navHostController.navigate(Screen.ArtistDetails.route) {
-                                launchSingleTop = true
+                        ArtistsGrid(
+                            searchResults,
+                            onArtistSelected = { artist ->
+                                viewModel.setSelectedArtist(artist)
+                                navHostController.navigate(Screen.ArtistDetails.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onAddToQueue = { artist ->
+                                coroutineScope.launch {
+                                    val songs = viewModel.getArtistSongs(artist)
+                                    songs.forEach { mediaController?.addMediaItem(it) }
+                                }
+                            },
+                            onPlayNext = { artist ->
+                                coroutineScope.launch {
+                                    val songs = viewModel.getArtistSongs(artist)
+                                    val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                                    songs.forEachIndexed { i, song ->
+                                        mediaController?.addMediaItem(insertIndex + i, song)
+                                    }
+                                }
                             }
-                        })
+                        )
                     },
                     extraAction = {
                         Box {
@@ -104,12 +127,30 @@ fun ArtistsScreen(
                     .fillMaxSize()
                     .padding(top = innerPadding.calculateTopPadding())
             ) {
-                ArtistsGrid(allArtistList, onArtistSelected = { artist ->
-                    viewModel.setSelectedArtist(artist)
-                    navHostController.navigate(Screen.ArtistDetails.route) {
-                        launchSingleTop = true
+                ArtistsGrid(
+                    allArtistList,
+                    onArtistSelected = { artist ->
+                        viewModel.setSelectedArtist(artist)
+                        navHostController.navigate(Screen.ArtistDetails.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onAddToQueue = { artist ->
+                        coroutineScope.launch {
+                            val songs = viewModel.getArtistSongs(artist)
+                            songs.forEach { mediaController?.addMediaItem(it) }
+                        }
+                    },
+                    onPlayNext = { artist ->
+                        coroutineScope.launch {
+                            val songs = viewModel.getArtistSongs(artist)
+                            val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                            songs.forEachIndexed { i, song ->
+                                mediaController?.addMediaItem(insertIndex + i, song)
+                            }
+                        }
                     }
-                })
+                )
             }
         }
     }

@@ -193,6 +193,7 @@ class LocalProvider @Inject constructor(
                 val songs = getLocalAlbumSongs(albumIdLong)
                 val totalDuration = songs.sumOf { it.mediaMetadata.durationMs ?: 0L }
                 val genre = songs.firstOrNull()?.mediaMetadata?.genre
+                val artistId = songs.firstOrNull()?.mediaMetadata?.extras?.getString("artistId") ?: ""
 
                 val mediaMetadata = MediaMetadata.Builder()
                     .setTitle(albumName)
@@ -208,6 +209,7 @@ class LocalProvider @Inject constructor(
                     .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
                     .setExtras(Bundle().apply {
                         putString("navidromeID", "$LOCAL_PREFIX$albumIdLong")
+                        putString("artistId", artistId)
                     })
                     .build()
 
@@ -322,6 +324,7 @@ class LocalProvider @Inject constructor(
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                     .setExtras(Bundle().apply {
                         putString("navidromeID", "$LOCAL_PREFIX$id")
+                        putString("albumId", "$LOCAL_PREFIX$albumId")
                         putString("artistId", "$LOCAL_PREFIX${artist.hashCode()}")
                         putString("lyricsArtist", artist)
                         putString("format", format.drop(6))
@@ -435,6 +438,7 @@ class LocalProvider @Inject constructor(
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                     .setExtras(Bundle().apply {
                         putString("navidromeID", "$LOCAL_PREFIX$id")
+                        putString("albumId", "$LOCAL_PREFIX$albumId")
                         putString("artistId", "$LOCAL_PREFIX${artist.hashCode()}")
                         putString("lyricsArtist", artist)
                         putString("format", format.drop(6))
