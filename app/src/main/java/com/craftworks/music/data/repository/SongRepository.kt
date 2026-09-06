@@ -39,11 +39,11 @@ class SongRepository @Inject constructor(
         deferredSongs.awaitAll().flatten()
     }
 
-    suspend fun getRandomSongs(size: Int = 500): List<MediaItem> = coroutineScope {
+    suspend fun getRandomSongs(size: Int = 2000): List<MediaItem> = coroutineScope {
         val deferredSongs = mutableListOf<Deferred<List<MediaItem>>>()
 
         if (LocalProviderManager.checkActiveFolders())
-            deferredSongs.add(async { localDataSource.getLocalSongs().shuffled().take(size) })
+            deferredSongs.add(async { localDataSource.getLocalSongs().shuffled() })
 
         if (NavidromeManager.checkActiveServers())
             deferredSongs.add(async { navidromeDataSource.getNavidromeRandomSongs(size) })

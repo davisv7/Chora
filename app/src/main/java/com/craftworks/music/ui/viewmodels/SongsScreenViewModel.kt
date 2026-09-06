@@ -84,7 +84,7 @@ class SongsScreenViewModel @Inject constructor(
         }
     }
     @androidx.annotation.OptIn(UnstableApi::class)
-    fun shuffleLibrary(mediaController: MediaController?, size: Int = 500) {
+    fun shuffleLibrary(mediaController: MediaController?, size: Int = 2000) {
         viewModelScope.launch {
             _isLoading.value = true
             val randomSongs = coroutineScope { songRepository.getRandomSongs(size) }
