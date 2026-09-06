@@ -383,6 +383,22 @@ fun HomeScreen(
                             mediaController = mediaController
                         )
                 }
+            },
+            onAddToQueue = { album ->
+                coroutineScope.launch {
+                    val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
+                    viewModel.getAlbumSongs(albumId).drop(1).forEach { mediaController?.addMediaItem(it) }
+                }
+            },
+            onPlayNext = { album ->
+                coroutineScope.launch {
+                    val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
+                    val mediaItems = viewModel.getAlbumSongs(albumId)
+                    val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
+                    mediaItems.drop(1).forEachIndexed { i, song ->
+                        mediaController?.addMediaItem(insertIndex + i, song)
+                    }
+                }
             }
         )
     }

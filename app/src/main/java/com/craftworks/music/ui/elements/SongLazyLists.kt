@@ -443,6 +443,8 @@ fun AlbumRow(
     albums: List<MediaItem>,
     onAlbumSelected: (album: MediaData.Album) -> Unit,
     onPlay: (album: MediaItem) -> Unit,
+    onAddToQueue: ((album: MediaItem) -> Unit)? = null,
+    onPlayNext: ((album: MediaItem) -> Unit)? = null,
 ){
     val showProviderDividers by AppearanceSettingsManager(LocalContext.current).showProviderDividersFlow.collectAsStateWithLifecycle(true)
     val dividerIndex = albums.indexOfFirst { it.mediaMetadata.extras?.getString("navidromeID")!!.startsWith("Local_") }
@@ -491,6 +493,8 @@ fun AlbumRow(
                 onPlay = {
                     onPlay(album)
                 },
+                onAddToQueue = onAddToQueue?.let { { it(album) } },
+                onPlayNext = onPlayNext?.let { { it(album) } },
                 modifier = Modifier.animateItem()
             )
         }
