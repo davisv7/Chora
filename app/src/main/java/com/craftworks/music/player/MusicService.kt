@@ -326,6 +326,7 @@ class ChoraMediaLibraryService : MediaLibraryService() {
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                if (shuffleModeEnabled) anchorShuffleAtCurrent()
                 refreshShuffleOrder()
             }
 
@@ -799,6 +800,34 @@ class ChoraMediaLibraryService : MediaLibraryService() {
         } else {
             emptyList()
         }
+    }
+
+    /**
+     * Rewrite the shuffle order so the currently-playing item sits at
+     * position 0, with items originally after it retained in order, then
+     * items originally before it appended at the end. Called when shuffle
+     * transitions off→on so items scheduled earlier in the random order
+     * (but never actually played, because playback started mid-sequence)
+     * don't masquerade as "played history" in the queue view. From then on,
+     * items above the current index in the shuffle order are real play
+     * history and items below are up next.
+     */
+    @OptIn(UnstableApi::class)
+    private fun anchorShuffleAtCurrent() {
+        if (!::player.isInitialized) return
+        val exo = player as? ExoPlayer ?: return
+        if (!exo.shuffleModeEnabled) return
+
+        val sequence = currentShuffleSequence(exo)
+        val currentIdx = exo.currentMediaItemIndex
+        val currentPos = sequence.indexOf(currentIdx)
+        if (currentPos <= 0) return  // already at position 0, or missing (shouldn't happen)
+
+        val reordered = ArrayList<Int>(sequence.size)
+        reordered.addAll(sequence.subList(currentPos, sequence.size))
+        reordered.addAll(sequence.subList(0, currentPos))
+
+        exo.setShuffleOrder(DefaultShuffleOrder(reordered.toIntArray(), System.nanoTime()))
     }
 
     fun setSleepTimer(minutes: Int) {

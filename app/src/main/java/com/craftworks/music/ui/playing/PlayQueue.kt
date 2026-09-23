@@ -82,11 +82,6 @@ fun PlayQueueContent(
     }
     val shuffleOrder by serviceShuffleFlow.collectAsStateWithLifecycle()
 
-    // Base shuffle-order position that display index 0 maps to. Used to
-    // translate reorder drags (which speak in display indices) back into
-    // shuffle-order positions when we commit the move to the service.
-    var shuffleBaseOffset by remember { mutableIntStateOf(0) }
-
     DisposableEffect(mediaController) {
         val listener = object : Player.Listener {
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
@@ -113,19 +108,15 @@ fun PlayQueueContent(
         val useShuffle = shuffleModeEnabled && shuffleOrder.isNotEmpty() &&
             shuffleOrder.size == mediaController.mediaItemCount
         if (useShuffle) {
-            // Slice the shuffle sequence from the currently-playing item
-            // forward — items scheduled earlier in the shuffle order but
-            // never played are hidden from the queue view.
-            val currentTimelineIdx = mediaController.currentMediaItemIndex
-            val startAt = shuffleOrder.indexOf(currentTimelineIdx).coerceAtLeast(0)
-            shuffleBaseOffset = startAt
-            for (pos in startAt until shuffleOrder.size) {
-                val timelineIdx = shuffleOrder[pos]
+            // Show the whole shuffle sequence — items above the current one
+            // are played history, items below are up next. The service
+            // anchors the current item to position 0 whenever shuffle is
+            // enabled, so nothing above current is an unplayed orphan.
+            shuffleOrder.forEach { timelineIdx ->
                 currentList.add(mediaController.getMediaItemAt(timelineIdx))
                 timelineIndices.add(timelineIdx)
             }
         } else {
-            shuffleBaseOffset = 0
             for (i in 0 until mediaController.mediaItemCount) {
                 currentList.add(mediaController.getMediaItemAt(i))
                 timelineIndices.add(i)
@@ -151,6 +142,10 @@ fun PlayQueueContent(
         }
         dragCurrentIndex = to.index
     }
+
+    // Position of the playing item in the display list; drives the "up next"
+    // numbering below so items after current start at 1 in shuffle mode.
+    val currentDisplayIndex = currentList.indexOf(currentMediaItem)
 
     LazyColumn(
         state = lazyListState,
@@ -202,13 +197,21 @@ fun PlayQueueContent(
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
+                            } else if (shuffleModeEnabled) {
+                                // Shuffle mode: items above current are played
+                                // history (no number), items below are up next
+                                // starting at 1.
+                                if (currentDisplayIndex >= 0 && index > currentDisplayIndex) {
+                                    Text(
+                                        text = "${index - currentDisplayIndex}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             } else {
-                                // In shuffle mode the list starts at the current
-                                // song (index 0), so "up next" is index 1 → "1".
-                                // Without shuffle it's timeline position + 1.
-                                val label = if (shuffleModeEnabled) index else index + 1
+                                // Shuffle off: timeline position + 1.
                                 Text(
-                                    text = "$label",
+                                    text = "${index + 1}",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -259,21 +262,19 @@ fun PlayQueueContent(
                                             dragStartIndex != dragCurrentIndex
                                         ) {
                                             if (shuffleModeEnabled) {
-                                                // Guard: don't let the currently-playing song
-                                                // (display index 0 in shuffle mode) be dragged
-                                                // away or overwritten.
-                                                if (dragStartIndex != 0 && dragCurrentIndex != 0) {
-                                                    val service = ChoraMediaLibraryService.getInstance()
-                                                    if (service != null) {
-                                                        service.moveInShuffleOrder(
-                                                            shuffleBaseOffset + dragStartIndex,
-                                                            shuffleBaseOffset + dragCurrentIndex
-                                                        )
-                                                    } else {
-                                                        val fromTl = timelineIndices.getOrNull(dragStartIndex) ?: dragStartIndex
-                                                        val toTl = timelineIndices.getOrNull(dragCurrentIndex) ?: dragCurrentIndex
-                                                        mediaController.moveMediaItem(fromTl, toTl)
-                                                    }
+                                                // Display index maps directly to a shuffle
+                                                // position since we render the whole shuffle
+                                                // order. LaunchedEffect resyncs from the new
+                                                // shuffle order after commit, so moving the
+                                                // currently-playing song or dropping onto its
+                                                // slot works without leaving stale UI.
+                                                val service = ChoraMediaLibraryService.getInstance()
+                                                if (service != null) {
+                                                    service.moveInShuffleOrder(dragStartIndex, dragCurrentIndex)
+                                                } else {
+                                                    val fromTl = timelineIndices.getOrNull(dragStartIndex) ?: dragStartIndex
+                                                    val toTl = timelineIndices.getOrNull(dragCurrentIndex) ?: dragCurrentIndex
+                                                    mediaController.moveMediaItem(fromTl, toTl)
                                                 }
                                             } else {
                                                 mediaController.moveMediaItem(dragStartIndex, dragCurrentIndex)
