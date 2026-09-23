@@ -93,6 +93,12 @@ class ChoraMediaLibraryService : MediaLibraryService() {
     private val _shuffleOrder = MutableStateFlow<List<Int>>(emptyList())
     val shuffleOrder: StateFlow<List<Int>> = _shuffleOrder.asStateFlow()
 
+    // True after shuffle turns on and until we successfully anchor the current
+    // item to shuffle position 0. Some flows (shuffleLibrary) enable shuffle
+    // before populating the timeline, so the anchor has to happen on the
+    // next onTimelineChanged rather than the shuffle-mode change itself.
+    private var pendingAnchor: Boolean = false
+
     @Inject lateinit var appearanceSettingsManager: AppearanceSettingsManager
     @Inject lateinit var playbackSettingsManager: PlaybackSettingsManager
     @Inject lateinit var transcodeManager: TranscodeManager
@@ -326,11 +332,17 @@ class ChoraMediaLibraryService : MediaLibraryService() {
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                if (shuffleModeEnabled) anchorShuffleAtCurrent()
+                if (shuffleModeEnabled) {
+                    pendingAnchor = true
+                    if (anchorShuffleAtCurrent()) pendingAnchor = false
+                } else {
+                    pendingAnchor = false
+                }
                 refreshShuffleOrder()
             }
 
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                if (pendingAnchor && anchorShuffleAtCurrent()) pendingAnchor = false
                 refreshShuffleOrder()
             }
         })
@@ -811,23 +823,29 @@ class ChoraMediaLibraryService : MediaLibraryService() {
      * don't masquerade as "played history" in the queue view. From then on,
      * items above the current index in the shuffle order are real play
      * history and items below are up next.
+     *
+     * Returns true if the shuffle order is now anchored (current at position
+     * 0, or already was). Returns false if we couldn't anchor yet — e.g.,
+     * the timeline is empty or the current item isn't in the shuffle order.
      */
     @OptIn(UnstableApi::class)
-    private fun anchorShuffleAtCurrent() {
-        if (!::player.isInitialized) return
-        val exo = player as? ExoPlayer ?: return
-        if (!exo.shuffleModeEnabled) return
+    private fun anchorShuffleAtCurrent(): Boolean {
+        if (!::player.isInitialized) return false
+        val exo = player as? ExoPlayer ?: return false
+        if (!exo.shuffleModeEnabled) return false
 
         val sequence = currentShuffleSequence(exo)
         val currentIdx = exo.currentMediaItemIndex
         val currentPos = sequence.indexOf(currentIdx)
-        if (currentPos <= 0) return  // already at position 0, or missing (shouldn't happen)
+        if (currentPos < 0) return false  // timeline not populated yet
+        if (currentPos == 0) return true  // already anchored
 
         val reordered = ArrayList<Int>(sequence.size)
         reordered.addAll(sequence.subList(currentPos, sequence.size))
         reordered.addAll(sequence.subList(0, currentPos))
 
         exo.setShuffleOrder(DefaultShuffleOrder(reordered.toIntArray(), System.nanoTime()))
+        return true
     }
 
     fun setSleepTimer(minutes: Int) {
