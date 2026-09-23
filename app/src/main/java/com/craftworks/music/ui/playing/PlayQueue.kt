@@ -82,28 +82,14 @@ fun PlayQueueContent(
     }
     val shuffleOrder by serviceShuffleFlow.collectAsStateWithLifecycle()
 
-    DisposableEffect(mediaController, shuffleModeEnabled, shuffleOrder) {
-        fun syncList() {
-            currentList.clear()
-            timelineIndices.clear()
-            val useShuffle = shuffleModeEnabled && shuffleOrder.isNotEmpty() &&
-                shuffleOrder.size == mediaController.mediaItemCount
-            if (useShuffle) {
-                shuffleOrder.forEach { timelineIdx ->
-                    currentList.add(mediaController.getMediaItemAt(timelineIdx))
-                    timelineIndices.add(timelineIdx)
-                }
-            } else {
-                for (i in 0 until mediaController.mediaItemCount) {
-                    currentList.add(mediaController.getMediaItemAt(i))
-                    timelineIndices.add(i)
-                }
-            }
-        }
+    // Base shuffle-order position that display index 0 maps to. Used to
+    // translate reorder drags (which speak in display indices) back into
+    // shuffle-order positions when we commit the move to the service.
+    var shuffleBaseOffset by remember { mutableIntStateOf(0) }
 
+    DisposableEffect(mediaController) {
         val listener = object : Player.Listener {
             override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-                syncList()
                 currentMediaItem = mediaController.currentMediaItem
             }
 
@@ -116,12 +102,35 @@ fun PlayQueueContent(
             }
         }
 
-        // Initial load
-        syncList()
         currentMediaItem = mediaController.currentMediaItem
         mediaController.addListener(listener)
-
         onDispose { mediaController.removeListener(listener) }
+    }
+
+    LaunchedEffect(mediaController, shuffleModeEnabled, shuffleOrder, currentMediaItem) {
+        currentList.clear()
+        timelineIndices.clear()
+        val useShuffle = shuffleModeEnabled && shuffleOrder.isNotEmpty() &&
+            shuffleOrder.size == mediaController.mediaItemCount
+        if (useShuffle) {
+            // Slice the shuffle sequence from the currently-playing item
+            // forward — items scheduled earlier in the shuffle order but
+            // never played are hidden from the queue view.
+            val currentTimelineIdx = mediaController.currentMediaItemIndex
+            val startAt = shuffleOrder.indexOf(currentTimelineIdx).coerceAtLeast(0)
+            shuffleBaseOffset = startAt
+            for (pos in startAt until shuffleOrder.size) {
+                val timelineIdx = shuffleOrder[pos]
+                currentList.add(mediaController.getMediaItemAt(timelineIdx))
+                timelineIndices.add(timelineIdx)
+            }
+        } else {
+            shuffleBaseOffset = 0
+            for (i in 0 until mediaController.mediaItemCount) {
+                currentList.add(mediaController.getMediaItemAt(i))
+                timelineIndices.add(i)
+            }
+        }
     }
 
     val lazyListState = rememberLazyListState()
@@ -194,8 +203,12 @@ fun PlayQueueContent(
                                     modifier = Modifier.size(20.dp)
                                 )
                             } else {
+                                // In shuffle mode the list starts at the current
+                                // song (index 0), so "up next" is index 1 → "1".
+                                // Without shuffle it's timeline position + 1.
+                                val label = if (shuffleModeEnabled) index else index + 1
                                 Text(
-                                    text = "${index + 1}",
+                                    text = "$label",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -246,16 +259,21 @@ fun PlayQueueContent(
                                             dragStartIndex != dragCurrentIndex
                                         ) {
                                             if (shuffleModeEnabled) {
-                                                // Reorder within the shuffle sequence — the
-                                                // timeline stays put. Falls back to a timeline
-                                                // move if the service isn't reachable.
-                                                val service = ChoraMediaLibraryService.getInstance()
-                                                if (service != null) {
-                                                    service.moveInShuffleOrder(dragStartIndex, dragCurrentIndex)
-                                                } else {
-                                                    val fromTl = timelineIndices.getOrNull(dragStartIndex) ?: dragStartIndex
-                                                    val toTl = timelineIndices.getOrNull(dragCurrentIndex) ?: dragCurrentIndex
-                                                    mediaController.moveMediaItem(fromTl, toTl)
+                                                // Guard: don't let the currently-playing song
+                                                // (display index 0 in shuffle mode) be dragged
+                                                // away or overwritten.
+                                                if (dragStartIndex != 0 && dragCurrentIndex != 0) {
+                                                    val service = ChoraMediaLibraryService.getInstance()
+                                                    if (service != null) {
+                                                        service.moveInShuffleOrder(
+                                                            shuffleBaseOffset + dragStartIndex,
+                                                            shuffleBaseOffset + dragCurrentIndex
+                                                        )
+                                                    } else {
+                                                        val fromTl = timelineIndices.getOrNull(dragStartIndex) ?: dragStartIndex
+                                                        val toTl = timelineIndices.getOrNull(dragCurrentIndex) ?: dragCurrentIndex
+                                                        mediaController.moveMediaItem(fromTl, toTl)
+                                                    }
                                                 }
                                             } else {
                                                 mediaController.moveMediaItem(dragStartIndex, dragCurrentIndex)
