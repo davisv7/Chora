@@ -1,9 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("com.google.devtools.ksp")
     kotlin("plugin.serialization") version "2.4.0"
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.hilt)
+}
+
+val releaseKeystoreProps: Properties? = run {
+    // Explicit override wins.
+    val explicit = System.getenv("CHORA_KEYSTORE_PROPERTIES")
+    // Otherwise ~/.android-keystores/keystore.properties, using $HOME (env)
+    // rather than the JVM's user.home — those differ when the build runs
+    // under sudo/su where user.home comes from passwd, not the env.
+    val home = System.getenv("HOME") ?: System.getProperty("user.home")
+    val candidate = when {
+        !explicit.isNullOrBlank() -> file(explicit)
+        else -> file("$home/.android-keystores/keystore.properties")
+    }
+    if (candidate.isFile) Properties().apply { candidate.inputStream().use(::load) } else null
 }
 
 android {
@@ -27,6 +43,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseKeystoreProps != null) {
+            create("release") {
+                storeFile = file(releaseKeystoreProps.getProperty("storeFile"))
+                storePassword = releaseKeystoreProps.getProperty("storePassword")
+                keyAlias = releaseKeystoreProps.getProperty("keyAlias")
+                keyPassword = releaseKeystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -35,7 +62,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
         debug {
             isDebuggable = false
