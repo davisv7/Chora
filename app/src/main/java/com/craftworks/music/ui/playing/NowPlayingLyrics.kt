@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
@@ -67,6 +68,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextMotion
@@ -104,6 +106,14 @@ fun LyricsView(
     val lyrics by LyricsState.lyrics.collectAsStateWithLifecycle()
     val loading by LyricsState.loading.collectAsStateWithLifecycle()
     var isRefreshing by remember { mutableStateOf(false) }
+
+    // Keep the screen awake while lyrics are on screen — reading along and
+    // singing shouldn't get interrupted by the display timeout.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
 
     val appearanceSettingsManager = AppearanceSettingsManager(LocalContext.current)
 
