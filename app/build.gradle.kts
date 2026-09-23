@@ -30,6 +30,10 @@ android {
         generateLocaleConfig = true
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.craftworks.music"
         minSdk = 23

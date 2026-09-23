@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Wallpapers
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.craftworks.music.BuildConfig
 import com.craftworks.music.R
 import com.craftworks.music.data.model.Screen
 
@@ -75,8 +77,10 @@ fun SettingScreen(
     ) { innerPadding ->
         Box(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(
-                    top = innerPadding.calculateTopPadding()
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding()
                 )
         ) {
             Column(
@@ -106,6 +110,15 @@ fun SettingScreen(
                     navHostController
                 )
             }
+
+            Text(
+                text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
+            )
         }
     }
 }
