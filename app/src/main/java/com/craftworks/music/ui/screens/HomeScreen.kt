@@ -393,11 +393,7 @@ fun HomeScreen(
             onPlayNext = { album ->
                 coroutineScope.launch {
                     val albumId = album.mediaMetadata.extras?.getString("navidromeID") ?: ""
-                    val mediaItems = viewModel.getAlbumSongs(albumId)
-                    val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
-                    mediaItems.drop(1).forEachIndexed { i, song ->
-                        mediaController?.addMediaItem(insertIndex + i, song)
-                    }
+                    SongHelper.playNext(mediaController, viewModel.getAlbumSongs(albumId).drop(1))
                 }
             }
         )

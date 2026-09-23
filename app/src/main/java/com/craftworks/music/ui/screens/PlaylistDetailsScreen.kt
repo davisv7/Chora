@@ -318,10 +318,7 @@ fun PlaylistDetails(
                         mediaController?.addMediaItem(song)
                     },
                     onPlayNext = {
-                        mediaController?.addMediaItem(
-                            (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
-                            song
-                        )
+                        SongHelper.playNext(mediaController, song)
                     },
                     onSetRating = { songToRate = song },
                     onNavigateToAlbum = { albumId, imageUri ->

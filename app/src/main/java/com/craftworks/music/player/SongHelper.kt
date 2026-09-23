@@ -19,5 +19,27 @@ class SongHelper {
                 mediaController?.play()
             }
         }
+
+        // Insert items so they play immediately after the current one, even in
+        // shuffle mode. Routes through the service so we can rewrite the
+        // ExoPlayer ShuffleOrder (MediaController can't do that on its own).
+        fun playNext(mediaController: MediaController?, items: List<MediaItem>) {
+            if (items.isEmpty()) return
+
+            val service = ChoraMediaLibraryService.getInstance()
+            if (service != null) {
+                service.playNext(items)
+                return
+            }
+
+            // Service not reachable — fall back to naive insert (correct only
+            // when shuffle is off).
+            val controller = mediaController ?: return
+            val insertAt = (controller.currentMediaItemIndex + 1).coerceAtLeast(0)
+            items.forEachIndexed { i, item -> controller.addMediaItem(insertAt + i, item) }
+        }
+
+        fun playNext(mediaController: MediaController?, item: MediaItem) =
+            playNext(mediaController, listOf(item))
     }
 }

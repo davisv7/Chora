@@ -103,10 +103,7 @@ fun SongsScreen(
                                 mediaController?.addMediaItem(it)
                             },
                             onPlayNext = {
-                                mediaController?.addMediaItem(
-                                    (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
-                                    it
-                                )
+                                SongHelper.playNext(mediaController, it)
                             },
                             onSetRating = { songToRate = it },
                             onNavigateToAlbum = onNavigateToAlbum,
@@ -158,10 +155,7 @@ fun SongsScreen(
                         mediaController?.addMediaItem(it)
                     },
                     onPlayNext = {
-                        mediaController?.addMediaItem(
-                            (mediaController.currentMediaItemIndex + 1).coerceAtLeast(0),
-                            it
-                        )
+                        SongHelper.playNext(mediaController, it)
                     },
                     onSetRating = { songToRate = it },
                     onNavigateToAlbum = onNavigateToAlbum,

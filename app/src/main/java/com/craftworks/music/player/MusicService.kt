@@ -24,6 +24,8 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder
+import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
@@ -708,6 +710,40 @@ class ChoraMediaLibraryService : MediaLibraryService() {
 
             return Futures.immediateFuture(LibraryResult.ofVoid())
         }
+    }
+
+    @OptIn(UnstableApi::class)
+    fun playNext(items: List<MediaItem>) {
+        if (items.isEmpty() || !::player.isInitialized) return
+
+        val insertAt = (player.currentMediaItemIndex + 1).coerceAtLeast(0)
+        items.forEachIndexed { i, item -> player.addMediaItem(insertAt + i, item) }
+
+        val exo = player as? ExoPlayer ?: return
+        if (!exo.shuffleModeEnabled) return
+
+        // Rebuild the shuffle order so the newly inserted items play immediately
+        // after the current one. DefaultShuffleOrder.cloneAndInsert places new
+        // items at random positions, so without this fix "Queue Next" appears
+        // to insert correctly (the queue view shows timeline order) but the
+        // player follows the shuffle order to a different song on skip.
+        val order = exo.shuffleOrder
+        val n = order.length
+        val currentIndex = exo.currentMediaItemIndex
+        val insertedIndices = (insertAt until insertAt + items.size).toSet()
+
+        val sequence = ArrayList<Int>(n)
+        var i = order.firstIndex
+        while (i != C.INDEX_UNSET) {
+            sequence.add(i)
+            i = order.getNextIndex(i)
+        }
+
+        sequence.removeAll(insertedIndices)
+        val currentPos = sequence.indexOf(currentIndex).let { if (it < 0) sequence.size - 1 else it }
+        sequence.addAll(currentPos + 1, insertedIndices.sorted())
+
+        exo.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
     }
 
     fun setSleepTimer(minutes: Int) {

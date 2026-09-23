@@ -33,6 +33,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.media3.session.MediaController
 import com.craftworks.music.R
 import com.craftworks.music.data.model.Screen
+import com.craftworks.music.player.SongHelper
 import com.craftworks.music.ui.elements.ArtistsGrid
 import com.craftworks.music.ui.elements.RippleEffect
 import com.craftworks.music.ui.elements.TopBarWithSearch
@@ -98,11 +99,7 @@ fun ArtistsScreen(
                             },
                             onPlayNext = { artist ->
                                 coroutineScope.launch {
-                                    val songs = viewModel.getArtistSongs(artist)
-                                    val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
-                                    songs.forEachIndexed { i, song ->
-                                        mediaController?.addMediaItem(insertIndex + i, song)
-                                    }
+                                    SongHelper.playNext(mediaController, viewModel.getArtistSongs(artist))
                                 }
                             }
                         )
@@ -143,11 +140,7 @@ fun ArtistsScreen(
                     },
                     onPlayNext = { artist ->
                         coroutineScope.launch {
-                            val songs = viewModel.getArtistSongs(artist)
-                            val insertIndex = (mediaController?.currentMediaItemIndex ?: 0) + 1
-                            songs.forEachIndexed { i, song ->
-                                mediaController?.addMediaItem(insertIndex + i, song)
-                            }
+                            SongHelper.playNext(mediaController, viewModel.getArtistSongs(artist))
                         }
                     }
                 )
