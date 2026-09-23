@@ -41,11 +41,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import com.craftworks.music.R
+import com.craftworks.music.player.ChoraMediaLibraryService
+import kotlinx.coroutines.flow.MutableStateFlow
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -58,20 +61,44 @@ fun PlayQueueContent(
     if (mediaController == null)
         return
     val currentList = remember { mutableStateListOf<MediaItem>() }
+    // Timeline index for each entry in currentList — used to translate display
+    // positions back to the timeline when shuffle mode is on.
+    val timelineIndices = remember { mutableStateListOf<Int>() }
 
     var dragStartIndex by remember { mutableIntStateOf(-1) }
     var dragCurrentIndex by remember { mutableIntStateOf(-1) }
 
     var currentMediaItem by remember { mutableStateOf(mediaController.currentMediaItem) }
+    var shuffleModeEnabled by remember { mutableStateOf(mediaController.shuffleModeEnabled) }
 
     val haptic = LocalHapticFeedback.current
 
-    DisposableEffect(mediaController) {
+    // Observe the service's shuffle order so the queue reflects actual play
+    // order in shuffle mode. Empty list means "no shuffle order available" —
+    // either shuffle is off, or the service isn't reachable, in which case
+    // we fall back to timeline order.
+    val serviceShuffleFlow = remember {
+        ChoraMediaLibraryService.getInstance()?.shuffleOrder ?: MutableStateFlow(emptyList())
+    }
+    val shuffleOrder by serviceShuffleFlow.collectAsStateWithLifecycle()
+
+    DisposableEffect(mediaController, shuffleModeEnabled, shuffleOrder) {
         fun syncList() {
             currentList.clear()
-            currentList.addAll(
-                List(mediaController.mediaItemCount) { i -> mediaController.getMediaItemAt(i) }
-            )
+            timelineIndices.clear()
+            val useShuffle = shuffleModeEnabled && shuffleOrder.isNotEmpty() &&
+                shuffleOrder.size == mediaController.mediaItemCount
+            if (useShuffle) {
+                shuffleOrder.forEach { timelineIdx ->
+                    currentList.add(mediaController.getMediaItemAt(timelineIdx))
+                    timelineIndices.add(timelineIdx)
+                }
+            } else {
+                for (i in 0 until mediaController.mediaItemCount) {
+                    currentList.add(mediaController.getMediaItemAt(i))
+                    timelineIndices.add(i)
+                }
+            }
         }
 
         val listener = object : Player.Listener {
@@ -82,6 +109,10 @@ fun PlayQueueContent(
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 currentMediaItem = mediaController.currentMediaItem
+            }
+
+            override fun onShuffleModeEnabledChanged(enabled: Boolean) {
+                shuffleModeEnabled = enabled
             }
         }
 
@@ -104,6 +135,11 @@ fun PlayQueueContent(
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         if (dragStartIndex == -1) dragStartIndex = from.index
         currentList.add(to.index, currentList.removeAt(from.index))
+        // Keep timelineIndices in lockstep so click/seek during a drag uses
+        // the right timeline position for the item now at each display index.
+        if (from.index in timelineIndices.indices) {
+            timelineIndices.add(to.index, timelineIndices.removeAt(from.index))
+        }
         dragCurrentIndex = to.index
     }
 
@@ -137,7 +173,8 @@ fun PlayQueueContent(
                     },
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth().clickable {
-                        mediaController.seekTo(index, 0)
+                        val timelineIdx = timelineIndices.getOrNull(index) ?: index
+                        mediaController.seekTo(timelineIdx, 0)
                     }
                 ) {
                     Row(
@@ -208,7 +245,21 @@ fun PlayQueueContent(
                                         if (dragStartIndex != -1 && dragCurrentIndex != -1 &&
                                             dragStartIndex != dragCurrentIndex
                                         ) {
-                                            mediaController.moveMediaItem(dragStartIndex, dragCurrentIndex)
+                                            if (shuffleModeEnabled) {
+                                                // Reorder within the shuffle sequence — the
+                                                // timeline stays put. Falls back to a timeline
+                                                // move if the service isn't reachable.
+                                                val service = ChoraMediaLibraryService.getInstance()
+                                                if (service != null) {
+                                                    service.moveInShuffleOrder(dragStartIndex, dragCurrentIndex)
+                                                } else {
+                                                    val fromTl = timelineIndices.getOrNull(dragStartIndex) ?: dragStartIndex
+                                                    val toTl = timelineIndices.getOrNull(dragCurrentIndex) ?: dragCurrentIndex
+                                                    mediaController.moveMediaItem(fromTl, toTl)
+                                                }
+                                            } else {
+                                                mediaController.moveMediaItem(dragStartIndex, dragCurrentIndex)
+                                            }
                                         }
                                         dragStartIndex = -1
                                         dragCurrentIndex = -1

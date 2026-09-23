@@ -17,6 +17,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Rating
 import androidx.media3.common.StarRating
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
@@ -86,6 +87,11 @@ class ChoraMediaLibraryService : MediaLibraryService() {
     private var sleepTimerJob: Job? = null
     private var _sleepTimerRemainingTime = MutableStateFlow(0)
     val sleepTimerRemainingTime: StateFlow<Int> = _sleepTimerRemainingTime.asStateFlow()
+
+    // Play-order for shuffle mode as a list of timeline indices. Empty when
+    // shuffle is disabled — consumers should fall back to timeline order.
+    private val _shuffleOrder = MutableStateFlow<List<Int>>(emptyList())
+    val shuffleOrder: StateFlow<List<Int>> = _shuffleOrder.asStateFlow()
 
     @Inject lateinit var appearanceSettingsManager: AppearanceSettingsManager
     @Inject lateinit var playbackSettingsManager: PlaybackSettingsManager
@@ -318,7 +324,17 @@ class ChoraMediaLibraryService : MediaLibraryService() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                refreshShuffleOrder()
+            }
+
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                refreshShuffleOrder()
+            }
         })
+
+        refreshShuffleOrder()
 
         val mainActivityIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -723,27 +739,66 @@ class ChoraMediaLibraryService : MediaLibraryService() {
         if (!exo.shuffleModeEnabled) return
 
         // Rebuild the shuffle order so the newly inserted items play immediately
-        // after the current one. DefaultShuffleOrder.cloneAndInsert places new
-        // items at random positions, so without this fix "Queue Next" appears
-        // to insert correctly (the queue view shows timeline order) but the
-        // player follows the shuffle order to a different song on skip.
-        val order = exo.shuffleOrder
-        val n = order.length
-        val currentIndex = exo.currentMediaItemIndex
+        // after the current one. DefaultShuffleOrder.cloneAndInsert places them
+        // at random positions, so without this rewrite the queued songs would
+        // appear correctly in the timeline but shuffle would skip elsewhere.
+        val sequence = currentShuffleSequence(exo).toMutableList()
         val insertedIndices = (insertAt until insertAt + items.size).toSet()
+        sequence.removeAll(insertedIndices)
+        val currentPos = sequence.indexOf(exo.currentMediaItemIndex)
+            .let { if (it < 0) sequence.size - 1 else it }
+        sequence.addAll(currentPos + 1, insertedIndices.sorted())
 
-        val sequence = ArrayList<Int>(n)
+        exo.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+        refreshShuffleOrder()
+    }
+
+    /**
+     * Move an item within the shuffle play order. Positions are indices into
+     * the shuffle sequence (as exposed by [shuffleOrder]), not timeline
+     * indices. No-op when shuffle is disabled.
+     */
+    @OptIn(UnstableApi::class)
+    fun moveInShuffleOrder(fromShufflePos: Int, toShufflePos: Int) {
+        if (!::player.isInitialized) return
+        val exo = player as? ExoPlayer ?: return
+        if (!exo.shuffleModeEnabled) return
+        if (fromShufflePos == toShufflePos) return
+
+        val sequence = currentShuffleSequence(exo).toMutableList()
+        if (fromShufflePos !in sequence.indices || toShufflePos !in sequence.indices) return
+
+        val moved = sequence.removeAt(fromShufflePos)
+        sequence.add(toShufflePos, moved)
+
+        exo.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+        refreshShuffleOrder()
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun currentShuffleSequence(exo: ExoPlayer): List<Int> {
+        val order = exo.shuffleOrder
+        val sequence = ArrayList<Int>(order.length)
         var i = order.firstIndex
         while (i != C.INDEX_UNSET) {
             sequence.add(i)
             i = order.getNextIndex(i)
         }
+        return sequence
+    }
 
-        sequence.removeAll(insertedIndices)
-        val currentPos = sequence.indexOf(currentIndex).let { if (it < 0) sequence.size - 1 else it }
-        sequence.addAll(currentPos + 1, insertedIndices.sorted())
-
-        exo.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+    @OptIn(UnstableApi::class)
+    private fun refreshShuffleOrder() {
+        if (!::player.isInitialized) {
+            _shuffleOrder.value = emptyList()
+            return
+        }
+        val exo = player as? ExoPlayer
+        _shuffleOrder.value = if (exo != null && exo.shuffleModeEnabled) {
+            currentShuffleSequence(exo)
+        } else {
+            emptyList()
+        }
     }
 
     fun setSleepTimer(minutes: Int) {
