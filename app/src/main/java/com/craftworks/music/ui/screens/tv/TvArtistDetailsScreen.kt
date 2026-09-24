@@ -196,7 +196,6 @@ fun TvArtistDetailsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    mediaController?.shuffleModeEnabled = true
                                     coroutineScope.launch {
                                         val allArtistSongsList = artistAlbums.map {
                                             it.mediaMetadata.extras?.getString("navidromeID").let {
@@ -208,12 +207,12 @@ fun TvArtistDetailsScreen(
                                             }
                                         }
 
-                                        mediaController?.shuffleModeEnabled = true
                                         val random = allArtistSongsList.indices.random()
                                         SongHelper.play(
                                             allArtistSongsList.flatten(),
                                             random,
-                                            mediaController
+                                            mediaController,
+                                            shuffle = true
                                         )
                                         navHostController.navigate(Screen.NowPlayingLandscape.route) {
                                             launchSingleTop = true

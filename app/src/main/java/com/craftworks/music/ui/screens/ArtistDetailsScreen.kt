@@ -324,12 +324,12 @@ fun ArtistDetails(
                                     }
                                 }
 
-                                mediaController?.shuffleModeEnabled = true
                                 val random = allArtistSongsList.indices.random()
                                 SongHelper.play(
                                     allArtistSongsList.flatten(),
                                     random,
-                                    mediaController
+                                    mediaController,
+                                    shuffle = true
                                 )
                             }
                         },

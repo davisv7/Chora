@@ -188,13 +188,13 @@ fun TvPlaylistDetails(
 
                     OutlinedButton(
                         onClick = {
-                            mediaController?.shuffleModeEnabled = true
                             coroutineScope.launch {
                                 val random = playlistSongs.indices.random()
                                 SongHelper.play(
                                     playlistSongs,
                                     random,
-                                    mediaController
+                                    mediaController,
+                                    shuffle = true
                                 )
                                 navHostController.navigate(Screen.NowPlayingLandscape.route) {
                                     launchSingleTop = true

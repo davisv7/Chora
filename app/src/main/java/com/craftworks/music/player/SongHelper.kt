@@ -9,11 +9,19 @@ import kotlinx.coroutines.withContext
 
 class SongHelper {
     companion object{
-        suspend fun play(mediaItems: List<MediaItem>, index: Int, mediaController: MediaController?) {
+        suspend fun play(
+            mediaItems: List<MediaItem>,
+            index: Int,
+            mediaController: MediaController?,
+            shuffle: Boolean = false,
+        ) {
             if (mediaItems.isEmpty())
                 return
 
             withContext(Dispatchers.Main) {
+                // Set shuffle mode BEFORE loading media items so the service's
+                // shuffle-anchor logic doesn't scramble a chronological queue.
+                mediaController?.shuffleModeEnabled = shuffle
                 mediaController?.setMediaItems(mediaItems, index, 0)
                 mediaController?.prepare()
                 mediaController?.play()

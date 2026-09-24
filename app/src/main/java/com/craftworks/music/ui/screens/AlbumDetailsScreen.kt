@@ -359,13 +359,13 @@ fun AlbumDetails(
                     }
                     OutlinedButton(
                         onClick = {
-                            mediaController?.shuffleModeEnabled = true
                             coroutineScope.launch {
                             val random = currentAlbum.subList(1, currentAlbum.size).indices.random()
                             SongHelper.play(
                                 currentAlbum.subList(1, currentAlbum.size),
                                 random,
-                                mediaController
+                                mediaController,
+                                shuffle = true
                             )
                                 }
                         },

@@ -279,10 +279,9 @@ fun PlaylistDetails(
                     }
                     OutlinedButton (
                         onClick = {
-                            mediaController?.shuffleModeEnabled = true
                             coroutineScope.launch {
                                 val random = playlistSongs.indices.random()
-                                SongHelper.play(playlistSongs, random, mediaController)
+                                SongHelper.play(playlistSongs, random, mediaController, shuffle = true)
                             }
                         },
                         modifier = Modifier.widthIn(min = 128.dp, max = 320.dp)

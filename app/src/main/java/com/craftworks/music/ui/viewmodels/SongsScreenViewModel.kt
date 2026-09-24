@@ -90,8 +90,7 @@ class SongsScreenViewModel @Inject constructor(
             val randomSongs = coroutineScope { songRepository.getRandomSongs(size) }
             _isLoading.value = false
             if (randomSongs.isEmpty()) return@launch
-            mediaController?.shuffleModeEnabled = true
-            SongHelper.play(randomSongs, 0, mediaController)
+            SongHelper.play(randomSongs, 0, mediaController, shuffle = true)
         }
     }
 
