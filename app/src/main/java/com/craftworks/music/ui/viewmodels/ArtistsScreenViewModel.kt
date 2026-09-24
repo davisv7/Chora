@@ -44,6 +44,9 @@ class ArtistsScreenViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isArtistInfoLoading = MutableStateFlow(false)
+    val isArtistInfoLoading: StateFlow<Boolean> = _isArtistInfoLoading.asStateFlow()
+
     private val _showFavoritesOnly = MutableStateFlow(false)
     val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
@@ -108,6 +111,7 @@ class ArtistsScreenViewModel @Inject constructor(
 
     fun setSelectedArtist(artist: MediaData.Artist) {
         _selectedArtist.value = artist
+        _isArtistInfoLoading.value = true
         viewModelScope.launch {
             val loadingJob = launch {
                 delay(1000)
@@ -116,20 +120,23 @@ class ArtistsScreenViewModel @Inject constructor(
                 }
             }
             loadingJob.start()
-            coroutineScope {
-                val artistAlbumsAsync = async { artistRepository.getArtistAlbums(artist.navidromeID) }
-                _artistAlbums.value = artistAlbumsAsync.await()
+            try {
+                coroutineScope {
+                    val artistAlbumsAsync = async { artistRepository.getArtistAlbums(artist.navidromeID) }
+                    _artistAlbums.value = artistAlbumsAsync.await()
 
-                val artistDetails = async { artistRepository.getArtistInfo(artist.navidromeID) }.await()
-                _selectedArtist.value = _selectedArtist.value?.copy(
-                    description = artistDetails?.biography ?: "",
-                    musicBrainzId = artistDetails?.musicBrainzId,
-                    similarArtist = artistDetails?.similarArtist
-                )
+                    val artistDetails = async { artistRepository.getArtistInfo(artist.navidromeID) }.await()
+                    _selectedArtist.value = _selectedArtist.value?.copy(
+                        description = artistDetails?.biography ?: "",
+                        musicBrainzId = artistDetails?.musicBrainzId,
+                        similarArtist = artistDetails?.similarArtist
+                    )
+                }
+            } finally {
+                _isArtistInfoLoading.value = false
+                loadingJob.cancel()
+                _isLoading.value = false
             }
-
-            loadingJob.cancel()
-            _isLoading.value = false
         }
     }
     fun setShowFavoritesOnly(showFavorites: Boolean) {

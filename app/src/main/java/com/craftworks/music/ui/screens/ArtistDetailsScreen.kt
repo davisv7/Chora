@@ -92,6 +92,7 @@ fun ArtistDetails(
     viewModel: ArtistsScreenViewModel = hiltViewModel()
 ) {
     val showLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isArtistInfoLoading by viewModel.isArtistInfoLoading.collectAsStateWithLifecycle()
     val artist = viewModel.selectedArtist.collectAsStateWithLifecycle().value
     val artistAlbums = viewModel.artistAlbums.collectAsStateWithLifecycle().value
     val context = LocalContext.current
@@ -231,7 +232,7 @@ fun ArtistDetails(
                         Column (
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = if (description.isBlank()) 0.dp else 32.dp)
+                                .heightIn(min = if (isArtistInfoLoading || description.isNotBlank()) 56.dp else 0.dp)
                                 .clip(RoundedCornerShape(0.dp, 0.dp, 12.dp, 12.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .animateContentSize()
